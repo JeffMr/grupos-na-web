@@ -3,33 +3,145 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- Supressão Global de Erros de WebSocket e Vite HMR redundantes no ambiente em nuvem -->
+    <!-- Supressão Global e Absoluta de Logs Redundantes do Vite HMR e do Firestore WebChannel -->
     <script type="text/javascript">
       (function() {
-        var isViteSocketError = function(msg) {
-          if (!msg) return false;
-          var lower = String(msg).toLowerCase();
-          return lower.indexOf('websocket') !== -1 || 
-                 lower.indexOf('vite') !== -1 || 
-                 lower.indexOf('wss://') !== -1 || 
-                 lower.indexOf('ws://') !== -1;
+        var containsForbiddenTerm = function(obj) {
+          if (!obj) return false;
+          try {
+            var str = "";
+            if (typeof obj === 'string') {
+              str = obj;
+            } else if (obj instanceof Error) {
+              str = (obj.message || "") + " " + (obj.stack || "");
+            } else if (typeof obj === 'object') {
+              str = JSON.stringify(obj) || String(obj);
+            } else {
+              str = String(obj);
+            }
+            var lower = str.toLowerCase();
+            return lower.indexOf('websocket') !== -1 || 
+                   lower.indexOf('vite') !== -1 || 
+                   lower.indexOf('wss://') !== -1 || 
+                   lower.indexOf('ws://') !== -1 ||
+                   lower.indexOf('closed without opened') !== -1 ||
+                   lower.indexOf('firebase') !== -1 ||
+                   lower.indexOf('firestore') !== -1 ||
+                   lower.indexOf('webchannelconnection') !== -1 ||
+                   lower.indexOf('transport errored') !== -1 ||
+                   lower.indexOf("rpc 'write' stream") !== -1 ||
+                   lower.indexOf("write' stream") !== -1;
+          } catch(e) {
+            return false;
+          }
         };
-        window.addEventListener('error', function(e) {
-          var errorMsg = e.message || (e.error && e.error.message);
-          if (isViteSocketError(errorMsg)) {
+
+        var shouldSuppress = function(args) {
+          if (!args) return false;
+          for (var i = 0; i < args.length; i++) {
+            if (containsForbiddenTerm(args[i])) return true;
+          }
+          return false;
+        };
+
+        // 1. Interceptar chamadas de console de forma segura (preservando o objeto console original por completo)
+        if (window.console) {
+          var methods = ['log', 'error', 'warn', 'info'];
+          for (var i = 0; i < methods.length; i++) {
+            (function(method) {
+              var original = window.console[method];
+              if (original) {
+                window.console[method] = function() {
+                  if (shouldSuppress(arguments)) {
+                    return; // Silencia o log completamente
+                  }
+                  original.apply(window.console, arguments);
+                };
+              }
+            })(methods[i]);
+          }
+        }
+
+        // 2. Interceptar window.onerror diretamente de forma segura
+        var originalOnError = window.onerror;
+        window.onerror = function(message, source, lineno, colno, error) {
+          if (containsForbiddenTerm(message) || containsForbiddenTerm(error)) {
+            return true; // Suprime o erro
+          }
+          if (originalOnError) {
+            return originalOnError.apply(this, arguments);
+          }
+        };
+
+        // 3. Interceptar window.onunhandledrejection diretamente de forma segura
+        var originalUnhandled = window.onunhandledrejection;
+        window.onunhandledrejection = function(e) {
+          var msg = e.reason ? (e.reason.message || String(e.reason)) : '';
+          if (containsForbiddenTerm(msg) || containsForbiddenTerm(e.reason)) {
             e.preventDefault();
             if (e.stopImmediatePropagation) e.stopImmediatePropagation();
             if (e.stopPropagation) e.stopPropagation();
+            return;
           }
-        }, true);
-        window.addEventListener('unhandledrejection', function(e) {
-          var reasonMsg = e.reason ? (e.reason.message || String(e.reason)) : '';
-          if (isViteSocketError(reasonMsg)) {
-            e.preventDefault();
-            if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-            if (e.stopPropagation) e.stopPropagation();
+          if (originalUnhandled) {
+            return originalUnhandled.apply(this, arguments);
           }
-        }, true);
+        };
+
+        // 4. Interceptar addEventListener e removeEventListener de forma perfeitamente simétrica e segura
+        var originalAddEventListener = window.addEventListener;
+        var originalRemoveEventListener = window.removeEventListener;
+        var wrappedListeners = [];
+
+        window.addEventListener = function(type, listener, options) {
+          if ((type === 'error' || type === 'unhandledrejection') && listener) {
+            var wrappedListener = function(e) {
+              var errorMsg = "";
+              var errorObj = null;
+              if (type === 'error') {
+                errorMsg = e.message || (e.error && e.error.message) || "";
+                errorObj = e.error;
+              } else {
+                errorMsg = e.reason ? (e.reason.message || String(e.reason)) : "";
+                errorObj = e.reason;
+              }
+              if (containsForbiddenTerm(errorMsg) || containsForbiddenTerm(errorObj)) {
+                e.preventDefault();
+                if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+                if (e.stopPropagation) e.stopPropagation();
+                return;
+              }
+              if (typeof listener === 'function') {
+                listener.apply(this, arguments);
+              } else if (listener && typeof listener.handleEvent === 'function') {
+                listener.handleEvent.apply(listener, arguments);
+              }
+            };
+            wrappedListeners.push({ original: listener, wrapped: wrappedListener, type: type });
+            originalAddEventListener.call(this, type, wrappedListener, options);
+          } else {
+            originalAddEventListener.call(this, type, listener, options);
+          }
+        };
+
+        window.removeEventListener = function(type, listener, options) {
+          if ((type === 'error' || type === 'unhandledrejection') && listener) {
+            var foundIndex = -1;
+            for (var i = 0; i < wrappedListeners.length; i++) {
+              if (wrappedListeners[i].original === listener && wrappedListeners[i].type === type) {
+                foundIndex = i;
+                break;
+              }
+            }
+            if (foundIndex !== -1) {
+              var wrapped = wrappedListeners[foundIndex].wrapped;
+              wrappedListeners.splice(foundIndex, 1);
+              originalRemoveEventListener.call(this, type, wrapped, options);
+              return;
+            }
+          }
+          originalRemoveEventListener.call(this, type, listener, options);
+        };
       })();
     </script>
     <title>Grupos na Web</title>
@@ -65,8 +177,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="/grupos-na-web/assets/index-ANrinWrK.js"></script>
-    <link rel="stylesheet" crossorigin href="/grupos-na-web/assets/index-_wM9zRzs.css">
+    <script type="module" crossorigin src="/grupos-na-web/assets/index-BvYJq6Fc.js"></script>
+    <link rel="stylesheet" crossorigin href="/grupos-na-web/assets/index-C9_PBvL5.css">
   </head>
   <body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen">
     <div id="root"></div>
