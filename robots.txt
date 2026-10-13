@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+Allow: /blog
+Allow: /blog/*
+Allow: /grupos
+Allow: /sobre
+Allow: /ajuda
+Allow: /planos
+Allow: /lgpd
+Allow: /marketplace
+Allow: /termos
+Allow: /privacidade
+Disallow: /monetizacao
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: https://gruposnaweb.com.br/sitemap.xml
