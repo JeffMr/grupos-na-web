@@ -801,7 +801,7 @@ Error generating stack: `+f.message+`
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
- */const PZ=[["circle",{cx:"11",cy:"11",r:"8",key:"4ej97u"}],["line",{x1:"21",x2:"16.65",y1:"21",y2:"16.65",key:"13gj7c"}],["line",{x1:"8",x2:"14",y1:"11",y2:"11",key:"durymu"}]],RZ=Ke("zoom-out",PZ),La="v1.8.332",Dc={displayMode:"spotlight_and_grid",enableSpotlightCarousel:!0,spotlightTitle:"Vitrine VIP em Destaque",spotlightSubtitle:"Comunidades verificadas e recomendadas com visibilidade premium",spotlightMaxItems:8,spotlightAutoPlayInterval:4,enableInterleaving:!0,interleavingRatioVip:3,interleavingRatioRegular:9,allowVipOverflow:!0,allowRegularOverflow:!0,enableWeightedShuffle:!0,shuffleSeedMode:"session",shuffleIntervalMinutes:5,preserveTopPicks:!0,pinnedGroupIds:[],enableTierHierarchy:!0,categoryTargetingOnly:!1},OZ=()=>{};var bP={};/**
+ */const PZ=[["circle",{cx:"11",cy:"11",r:"8",key:"4ej97u"}],["line",{x1:"21",x2:"16.65",y1:"21",y2:"16.65",key:"13gj7c"}],["line",{x1:"8",x2:"14",y1:"11",y2:"11",key:"durymu"}]],RZ=Ke("zoom-out",PZ),La="v1.8.333",Dc={displayMode:"spotlight_and_grid",enableSpotlightCarousel:!0,spotlightTitle:"Vitrine VIP em Destaque",spotlightSubtitle:"Comunidades verificadas e recomendadas com visibilidade premium",spotlightMaxItems:8,spotlightAutoPlayInterval:4,enableInterleaving:!0,interleavingRatioVip:3,interleavingRatioRegular:9,allowVipOverflow:!0,allowRegularOverflow:!0,enableWeightedShuffle:!0,shuffleSeedMode:"session",shuffleIntervalMinutes:5,preserveTopPicks:!0,pinnedGroupIds:[],enableTierHierarchy:!0,categoryTargetingOnly:!1},OZ=()=>{};var bP={};/**
  * @license
  * Copyright 2017 Google LLC
  *
